@@ -524,15 +524,16 @@ def main():
     
     elif args.mode == "webhook":
         app = create_webhook_app(config)
+        port = int(os.getenv("PORT", args.port))
         print(f"\n🚀 启动Webhook服务器...")
-        print(f"   监听端口: {args.port}")
-        print(f"   Webhook URL: http://localhost:{args.port}/webhook")
-        print(f"   健康检查: http://localhost:{args.port}/health")
+        print(f"   监听端口: {port}")
+        print(f"   Webhook URL: http://0.0.0.0:{port}/webhook")
+        print(f"   健康检查: http://0.0.0.0:{port}/health")
         print(f"\n请在飞书开发者后台配置事件订阅地址:")
-        print(f"   {f'https://你的域名/webhook' if not args.port == 8080 else f'http://localhost:{args.port}/webhook'}")
+        print(f"   https://你的域名/webhook")
         print(f"\n按 Ctrl+C 停止服务\n")
         
-        app.run(host="0.0.0.0", port=args.port, debug=False)
+        app.run(host="0.0.0.0", port=port, debug=False)
 
 
 # ==================== 测试入口 ====================
