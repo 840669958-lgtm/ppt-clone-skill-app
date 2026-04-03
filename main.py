@@ -365,6 +365,13 @@ def create_webhook_app(config: AppConfig) -> Any:
     return app
 
 
+def create_webhook_app_from_env():
+    """从环境变量创建Webhook应用（供Gunicorn使用）"""
+    config = AppConfig.from_env()
+    init_auth(app_id=config.app_id, app_secret=config.app_secret)
+    return create_webhook_app(config)
+
+
 # ==================== 命令行入口 ====================
 
 def main():

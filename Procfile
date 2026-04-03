@@ -1,1 +1,1 @@
-web: python main.py --mode webhook --port $PORT
+web: gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 60 --access-logfile - --error-logfile - "main:create_webhook_app_from_env()"
