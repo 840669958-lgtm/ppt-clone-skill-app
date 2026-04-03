@@ -302,12 +302,15 @@ def create_webhook_app(config: AppConfig) -> Any:
         """接收飞书事件推送"""
         try:
             data = request.get_json()
+            print(f"[Webhook] 收到请求: {data}")
             
             # 处理URL验证（首次配置事件订阅时）
             if data.get("type") == "url_verification":
                 challenge = data.get("challenge")
                 print(f"[Webhook] 收到URL验证请求, challenge: {challenge}")
-                return jsonify({"challenge": challenge})
+                response = {"challenge": challenge}
+                print(f"[Webhook] 返回响应: {response}")
+                return jsonify(response)
             
             # 处理消息事件
             event_type = data.get("header", {}).get("event_type", "")
