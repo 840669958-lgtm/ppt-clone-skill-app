@@ -310,7 +310,12 @@ def create_webhook_app(config: AppConfig) -> Any:
                 print(f"[Webhook] 收到URL验证请求, challenge: {challenge}")
                 response = {"challenge": challenge}
                 print(f"[Webhook] 返回响应: {response}")
-                return jsonify(response)
+                from flask import Response
+                return Response(
+                    json.dumps(response),
+                    status=200,
+                    mimetype='application/json'
+                )
             
             # 处理消息事件
             event_type = data.get("header", {}).get("event_type", "")
