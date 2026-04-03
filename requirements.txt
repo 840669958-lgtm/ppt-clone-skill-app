@@ -9,6 +9,7 @@ requests>=2.28.0,<3.0.0       # HTTP请求（飞书API调用）
 # Webhook服务器依赖（Railway部署必需）
 flask>=2.0.0,<3.0.0           # Webhook服务器
 gunicorn>=20.0.0              # 生产WSGI服务器
+pycryptodome>=3.15.0          # AES加密解密（飞书事件订阅）
 
 # 开发依赖（测试和调试）
 # pytest>=7.0.0               # 单元测试框架

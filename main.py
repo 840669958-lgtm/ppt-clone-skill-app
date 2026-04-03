@@ -33,8 +33,11 @@ import time
 import json
 import argparse
 import tempfile
+import base64
+import hashlib
 from pathlib import Path
 from typing import Optional, Dict, Any
+from Crypto.Cipher import AES
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -275,6 +278,39 @@ class PPTCloneWorkflow:
 
 # ==================== Webhook服务器 ====================
 
+def decrypt_feishu_msg(encrypt_msg: str, encrypt_key: str) -> str:
+    """
+    解密飞书加密消息
+    
+    Args:
+        encrypt_msg: 加密的消息字符串
+        encrypt_key: 加密密钥
+        
+    Returns:
+        解密后的明文
+    """
+    # 飞书使用 AES-256-CBC 加密
+    # 密钥需要 MD5 哈希后取前 32 字节
+    key = hashlib.md5(encrypt_key.encode()).digest()
+    
+    # Base64 解码
+    encrypted_data = base64.b64decode(encrypt_msg)
+    
+    # 提取 IV (前 16 字节) 和密文
+    iv = encrypted_data[:16]
+    ciphertext = encrypted_data[16:]
+    
+    # AES 解密
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    plaintext = cipher.decrypt(ciphertext)
+    
+    # 去除 PKCS7 填充
+    padding_len = plaintext[-1]
+    plaintext = plaintext[:-padding_len]
+    
+    return plaintext.decode('utf-8')
+
+
 def create_webhook_app(config: AppConfig) -> Any:
     """
     创建Webhook应用（用于接收飞书事件）
@@ -303,6 +339,22 @@ def create_webhook_app(config: AppConfig) -> Any:
         try:
             data = request.get_json()
             print(f"[Webhook] 收到请求: {data}")
+            
+            # 处理加密数据
+            if "encrypt" in data:
+                # 有加密，需要解密
+                encrypt_key = config.get("encrypt_key", "")
+                if encrypt_key:
+                    try:
+                        decrypted = decrypt_feishu_msg(data["encrypt"], encrypt_key)
+                        print(f"[Webhook] 解密后: {decrypted}")
+                        data = json.loads(decrypted)
+                    except Exception as e:
+                        print(f"[Webhook] 解密失败: {e}")
+                        return jsonify({"code": 1, "msg": "decrypt failed"}), 400
+                else:
+                    print("[Webhook] 收到加密数据但没有配置 encrypt_key")
+                    return jsonify({"code": 1, "msg": "no encrypt_key"}), 400
             
             # 处理URL验证（首次配置事件订阅时）
             if data.get("type") == "url_verification":
