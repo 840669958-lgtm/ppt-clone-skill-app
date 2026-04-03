@@ -300,40 +300,59 @@ def create_webhook_app(config: AppConfig) -> Any:
     @app.route("/webhook", methods=["POST"])
     def webhook():
         """接收飞书事件推送"""
-        data = request.get_json()
-        
-        # 处理URL验证（首次配置事件订阅时）
-        if data.get("type") == "url_verification":
-            return jsonify({"challenge": data.get("challenge")})
-        
-        # 处理消息事件
-        event_type = data.get("header", {}).get("event_type", "")
-        
-        if event_type == "im.message.receive_v1":
-            try:
-                # 解析消息
-                ppt_msg = workflow.message_handler.parse_message_event(data)
-                
-                if ppt_msg:
-                    print(f"\n收到PPT分享消息: {ppt_msg}")
+        try:
+            data = request.get_json()
+            
+            # 处理URL验证（首次配置事件订阅时）
+            if data.get("type") == "url_verification":
+                challenge = data.get("challenge")
+                print(f"[Webhook] 收到URL验证请求, challenge: {challenge}")
+                return jsonify({"challenge": challenge})
+            
+            # 处理消息事件
+            event_type = data.get("header", {}).get("event_type", "")
+            
+            if event_type == "im.message.receive_v1":
+                try:
+                    # 解析消息内容
+                    event_data = data.get("event", {})
+                    message = event_data.get("message", {})
+                    content = json.loads(message.get("content", "{}"))
                     
-                    # 异步处理（实际生产环境应使用任务队列）
-                    import threading
-                    thread = threading.Thread(
-                        target=workflow.process_ppt_share,
-                        args=(ppt_msg,)
-                    )
-                    thread.start()
-                    
-                    return jsonify({"code": 0, "msg": "processing"})
-                else:
-                    return jsonify({"code": 0, "msg": "not_ppt_share"})
-                    
-            except Exception as e:
-                print(f"处理消息事件失败: {e}")
-                return jsonify({"code": -1, "msg": str(e)}), 500
-        
-        return jsonify({"code": 0, "msg": "ignored"})
+                    # 检查是否是PPT分享
+                    msg_type = message.get("message_type", "")
+                    if msg_type == "share_chat" or "url" in content:
+                        print(f"\n[Webhook] 收到PPT分享消息")
+                        print(f"  内容: {content}")
+                        
+                        # TODO: 解析PPT链接并处理
+                        # 这里暂时返回处理中，实际应该启动异步任务
+                        return jsonify({"code": 0, "msg": "ppt_share_received"})
+                    else:
+                        return jsonify({"code": 0, "msg": "not_ppt_share"})
+                        
+                except Exception as e:
+                    print(f"[Webhook] 处理消息事件失败: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    return jsonify({"code": -1, "msg": str(e)}), 500
+            
+            return jsonify({"code": 0, "msg": "ignored"})
+        except Exception as e:
+            print(f"[Webhook] 处理请求失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"code": -1, "msg": "internal_error"}), 500
+    
+    @app.errorhandler(404)
+    def not_found(error):
+        """处理404错误"""
+        return jsonify({"code": 404, "msg": "not found"}), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        """处理500错误"""
+        return jsonify({"code": 500, "msg": "internal error"}), 500
     
     @app.route("/health", methods=["GET"])
     def health():
