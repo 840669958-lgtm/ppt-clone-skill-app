@@ -280,18 +280,17 @@ class PPTCloneWorkflow:
 
 def decrypt_feishu_msg(encrypt_msg: str, encrypt_key: str) -> str:
     """
-    解密飞书加密消息
+    解密飞书加密消息（AES-256-CBC）
     
     Args:
-        encrypt_msg: 加密的消息字符串
+        encrypt_msg: 加密的消息字符串（base64编码）
         encrypt_key: 加密密钥
         
     Returns:
-        解密后的明文
+        解密后的明文JSON字符串
     """
-    # 飞书使用 AES-256-CBC 加密
-    # 密钥需要 MD5 哈希后取前 32 字节
-    key = hashlib.md5(encrypt_key.encode()).digest()
+    # 飞书使用 SHA256 哈希密钥取前32字节作为AES密钥
+    key = hashlib.sha256(encrypt_key.encode('utf-8')).digest()
     
     # Base64 解码
     encrypted_data = base64.b64decode(encrypt_msg)
@@ -300,7 +299,7 @@ def decrypt_feishu_msg(encrypt_msg: str, encrypt_key: str) -> str:
     iv = encrypted_data[:16]
     ciphertext = encrypted_data[16:]
     
-    # AES 解密
+    # AES-CBC 解密
     cipher = AES.new(key, AES.MODE_CBC, iv)
     plaintext = cipher.decrypt(ciphertext)
     
@@ -343,7 +342,7 @@ def create_webhook_app(config: AppConfig) -> Any:
             # 处理加密数据
             if "encrypt" in data:
                 # 有加密，需要解密
-                encrypt_key = config.get("encrypt_key", "")
+                encrypt_key = config.encrypt_key or ""
                 if encrypt_key:
                     try:
                         decrypted = decrypt_feishu_msg(data["encrypt"], encrypt_key)
